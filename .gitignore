@@ -1,0 +1,15 @@
+# ignore everything
+*
+
+# except source files and solution
+!.gitignore
+!*.sln
+!*.cpp
+!*.h
+!*.txt
+!*.ico
+!*.rc
+!*.rc2
+!*.vcxproj
+!*.filters
+!*/

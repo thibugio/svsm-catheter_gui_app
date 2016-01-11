@@ -2,10 +2,8 @@
 #ifndef STATUS_PANEL_H
 #define STATUS_PANEL_H
 
-//#include "gui_common.h"
-#include <wx/wxprec.h>
-#include <wx/panel.h>
-#include <wx/stattext.h>
+class wxPanel;
+class wxStaticText;
 
 class StatusPanel : public wxPanel {
     public:

@@ -152,19 +152,12 @@
     <ClInclude Include="inc\CatheterGuiApp.h" />
     <ClInclude Include="inc\com\common_utils.h" />
     <ClInclude Include="inc\com\pc_utils.h" />
-    <ClInclude Include="inc\ControlPanel.h" />
-    <ClInclude Include="inc\EditPanel.h" />
-    <ClInclude Include="inc\gui_common.h" />
-    <ClInclude Include="inc\StatusPanel.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CatheterGuiFrame.cpp" />
     <ClCompile Include="src\CatheterGuiApp.cpp" />
     <ClCompile Include="src\com\common_utils.cpp" />
     <ClCompile Include="src\com\pc_utils.cpp" />
-    <ClCompile Include="src\ControlPanel.cpp" />
-    <ClCompile Include="src\EditPanel.cpp" />
-    <ClCompile Include="src\StatusPanel.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

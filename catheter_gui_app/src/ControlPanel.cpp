@@ -1,4 +1,22 @@
-#include "CatheterGui.h"
+#include "wx/wxprec.h"
+
+#ifdef __BORLANDC__
+#pragma hdrstop
+#endif
+
+#ifndef WX_PRECOMP
+#include "wx/wx.h"
+#endif
+
+#include <wx/panel.h>
+#include <wx/button.h>
+
+#include "ControlPanel.h"
+#include "StatusPanel.h"
+#include "EditPanel.h"
+#include "CatheterGuiFrame.h"
+
+#define playfile_wildcard wxT("*.play")
 
 ControlPanel::ControlPanel(wxPanel* parentPanel) :
     wxPanel(parentPanel, -1, wxPoint(-1, -1), wxSize(-1, -1), wxBORDER_SUNKEN) {
@@ -36,12 +54,14 @@ ControlPanel::ControlPanel(wxPanel* parentPanel) :
 }
 
 void ControlPanel::OnSelectPlayfileButtonClicked(wxCommandEvent& WXUNUSED(e)) {
-    CatheterGui* gui = (CatheterGui*)(parent->GetParent());
-    gui->statusPanel->statusText->SetLabel(wxT("Selecting Playfile"));
+    //getParent()->statusPanel->statusText->SetLabel(wxT("Selecting Playfile"));
 }
 
 void ControlPanel::OnAddCommandButtonClicked(wxCommandEvent& WXUNUSED(e)) {
-    CatheterGui* gui = (CatheterGui*)(parent->GetParent());
-    gui->statusPanel->statusText->SetLabel(wxT("Adding Channel Command"));
-    gui->editPanel->addCommandRow();
+    //getParent()->statusPanel->statusText->SetLabel(wxT("Adding Channel Command"));
+    //getParent()->editPanel->addCommandRow();
+}
+
+CatheterGuiFrame* ControlPanel::getParent() {
+    return (CatheterGuiFrame*)(parent->GetParent());
 }

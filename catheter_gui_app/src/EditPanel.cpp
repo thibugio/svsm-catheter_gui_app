@@ -17,6 +17,13 @@
 #include "EditPanel.h"
 #include "com/common_utils.h"
 
+#define CHANNEL_COL 0
+#define CURRENT_COL 1
+#define DIR_COL 2
+#define DELAY_COL 3
+
+#define NFIELDS 4
+
 EditPanel::EditPanel(wxPanel* parentPanel) :
     wxPanel(parentPanel, -1, wxPoint(-1, -1), wxSize(-1, -1), wxBORDER_SUNKEN) {
 
@@ -153,7 +160,7 @@ void EditPanel::formatRow(int row) {
     grid->SetCellEditor(row, CURRENT_COL, new wxGridCellFloatEditor(3, 3));
     grid->SetCellEditor(row, DIR_COL, new wxGridCellEnumEditor(wxT("neg,pos")));
     grid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0, 3600));
-    //setRowReadOnly(row, true);
+    setRowReadOnly(row, true);
 }
 
 void EditPanel::setRowReadOnly(int row, bool readOnly) {

@@ -2,14 +2,6 @@
 #ifndef EDIT_PANEL_H
 #define EDIT_PANEL_H
 
-#define CHANNEL_COL 0
-#define CURRENT_COL 1
-#define DIR_COL 2
-#define DELAY_COL 3
-
-#define NFIELDS 4
-
-
 #include <vector>
 
 class wxGrid;

@@ -1,3 +1,16 @@
+#include <wx/wxprec.h>
+
+#ifdef __BORLANDC__
+#pragma hdrstop
+#endif
+
+#ifndef WX_PRECOMP
+#include "wx/wx.h"
+#endif
+
+#include <wx/panel.h>
+#include <wx/stattext.h>
+
 #include "StatusPanel.h"
 
 StatusPanel::StatusPanel(wxPanel* parentPanel) : 

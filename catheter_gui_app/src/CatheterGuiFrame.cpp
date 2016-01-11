@@ -1,7 +1,21 @@
-#include "CatheterGui.h"
+#include "wx/wxprec.h"
+
+#ifdef __BORLANDC__
+#pragma hdrstop
+#endif
+
+#ifndef WX_PRECOMP
+#include "wx/wx.h"
+#endif
+
 #include <wx/frame.h>
 
-CatheterGui::CatheterGui(const wxString& title) :
+#include "CatheterGuiFrame.h"
+#include "EditPanel.h"
+#include "StatusPanel.h"
+#include "ControlPanel.h"
+
+CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     wxFrame(NULL, wxID_ANY, title) {
 
     parentPanel = new wxPanel(this, wxID_ANY);
@@ -21,3 +35,5 @@ CatheterGui::CatheterGui(const wxString& title) :
     Fit();
     Center();
 }
+
+CatheterGuiFrame::~CatheterGuiFrame() {}

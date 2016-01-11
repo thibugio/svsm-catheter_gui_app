@@ -15,9 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="inc\CatheterGui.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="inc\CatheterGuiApp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -39,11 +36,11 @@
     <ClInclude Include="inc\com\pc_utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\CatheterGuiFrame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\CatheterGui.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\CatheterGuiApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -60,6 +57,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\com\pc_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CatheterGuiFrame.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -2,12 +2,11 @@
 #ifndef CATHETER_GUI_APP_H
 #define CATHETER_GUI_APP_H
 
-#include "CatheterGui.h"
+class wxApp;
 
 class CatheterGuiApp : public wxApp {
     public:
-    virtual bool OnInit();
-    CatheterGui* gui;
+    bool OnInit();
 };
 
 #endif

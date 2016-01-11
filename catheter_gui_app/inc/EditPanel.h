@@ -2,19 +2,19 @@
 #ifndef EDIT_PANEL_H
 #define EDIT_PANEL_H
 
-#include "com/common_utils.h"
-//#include "gui_common.h"
-#include <wx/wxprec.h>
-#include <wx/panel.h>
-#include <wx/grid.h>
-#include <vector>
-
 #define CHANNEL_COL 0
 #define CURRENT_COL 1
 #define DIR_COL 2
 #define DELAY_COL 3
 
 #define NFIELDS 4
+
+
+#include <vector>
+
+class wxGrid;
+class wxGridEvent;
+struct CatheterChannelCmd;
 
 class EditPanel : public wxPanel {
     public:
@@ -25,7 +25,7 @@ class EditPanel : public wxPanel {
     void addCommandRow();
 
     //wxPanel* parent;
-    wxGrid* cmdGrid;
+    wxGrid* grid;
     unsigned int cmdCount;
     wxString* dir_choices;
     std::vector<CatheterChannelCmd> gridCmds;

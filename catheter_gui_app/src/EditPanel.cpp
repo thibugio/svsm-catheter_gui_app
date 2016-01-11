@@ -1,4 +1,21 @@
+#include <wx/wxprec.h>
+
+#ifdef __BORLANDC__
+#pragma hdrstop
+#endif
+
+#ifndef WX_PRECOMP
+#include "wx/wx.h"
+#endif
+
+#include <wx/panel.h>
+#include <wx/grid.h>
+#include <wx/headerctrl.h>
+#include <wx/generic/gridctrl.h>
+#include <wx/generic/grideditors.h>
+
 #include "EditPanel.h"
+#include "com/common_utils.h"
 
 EditPanel::EditPanel(wxPanel* parentPanel) :
     wxPanel(parentPanel, -1, wxPoint(-1, -1), wxSize(-1, -1), wxBORDER_SUNKEN) {
@@ -14,41 +31,41 @@ EditPanel::EditPanel(wxPanel* parentPanel) :
     //gridCmds
     addCommand();
 
-    cmdGrid = new wxGrid(this, wxID_ANY);
-    cmdGrid->CreateGrid(NCHANNELS, NFIELDS); 
+    grid = new wxGrid(this, wxID_ANY);
+    grid->CreateGrid(NCHANNELS, NFIELDS); 
 
-    cmdGrid->GetTable()->SetAttrProvider(new wxGridCellAttrProvider());  
+    grid->GetTable()->SetAttrProvider(new wxGridCellAttrProvider());  
     for (int i = 0; i < NFIELDS; i++)
-        cmdGrid->GetTable()->GetAttrProvider()->SetColAttr(new wxGridCellAttr(), i);
+        grid->GetTable()->GetAttrProvider()->SetColAttr(new wxGridCellAttr(), i);
 
-    cmdGrid->EnableDragGridSize(true);
-    cmdGrid->SetTabBehaviour(wxGrid::Tab_Wrap);
+    grid->EnableDragGridSize(true);
+    grid->SetTabBehaviour(wxGrid::Tab_Wrap);
 
     formatGrid(NCHANNELS);
 
     wxBoxSizer* hbox = new wxBoxSizer(wxHORIZONTAL);
-    hbox->Add(cmdGrid);
+    hbox->Add(grid);
     this->SetSizer(hbox);
     hbox->SetSizeHints(this);
     hbox->Fit(this);
     
-    cmdGrid->Connect(wxEVT_GRID_CELL_CHANGING, wxGridEventHandler(EditPanel::OnGridCellChanging));
+    grid->Connect(wxEVT_GRID_CELL_CHANGING, wxGridEventHandler(EditPanel::OnGridCellChanging));
 
     Fit();
     Center();
 }
 
 void EditPanel::formatGrid(int nrows) {
-    cmdGrid->SetColLabelValue(CHANNEL_COL, wxT("Channel"));
-    cmdGrid->SetColLabelValue(CURRENT_COL, wxT("Current (MA)"));
-    cmdGrid->SetColLabelValue(DIR_COL, wxT("Direction"));
-    cmdGrid->SetColLabelValue(DELAY_COL, wxT("Delay (ms)"));
+    grid->SetColLabelValue(CHANNEL_COL, wxT("Channel"));
+    grid->SetColLabelValue(CURRENT_COL, wxT("Current (MA)"));
+    grid->SetColLabelValue(DIR_COL, wxT("Direction"));
+    grid->SetColLabelValue(DELAY_COL, wxT("Delay (ms)"));
     //HideRowLabels();
 
-    cmdGrid->SetColFormatNumber(CHANNEL_COL); //channel address
-    cmdGrid->SetColFormatFloat(CURRENT_COL); // MA current
+    grid->SetColFormatNumber(CHANNEL_COL); //channel address
+    grid->SetColFormatFloat(CURRENT_COL); // MA current
     //default is String for Direction
-    cmdGrid->SetColFormatNumber(DELAY_COL); //delay
+    grid->SetColFormatNumber(DELAY_COL); //delay
 
     for (int i = 0; i < nrows; i++)
         formatRow(i);
@@ -101,9 +118,9 @@ void EditPanel::setCommandCurrentMA(int row, wxString& s) {
     gridCmds[row].currentMA = currentMA;
 
     if (currentMA < 0)
-        cmdGrid->SetCellValue(wxGridCellCoords(row, DIR_COL), dir_choices[DIR_NEG]);
+        grid->SetCellValue(wxGridCellCoords(row, DIR_COL), dir_choices[DIR_NEG]);
     else if (currentMA > 0)
-        cmdGrid->SetCellValue(wxGridCellCoords(row, DIR_COL), dir_choices[DIR_POS]);
+        grid->SetCellValue(wxGridCellCoords(row, DIR_COL), dir_choices[DIR_POS]);
 }
 
 void EditPanel::setCommandDirection(int row, wxString& s) {
@@ -112,7 +129,7 @@ void EditPanel::setCommandDirection(int row, wxString& s) {
             (!wxStrcmp(s, dir_choices[DIR_NEG]) && gridCmds[row].currentMA > 0)) {
 
             gridCmds[row].currentMA *= -1;
-            cmdGrid->SetCellValue(wxGridCellCoords(row, CURRENT_COL), 
+            grid->SetCellValue(wxGridCellCoords(row, CURRENT_COL), 
                                   wxString::Format("3.3f", gridCmds[row].currentMA));
         }
     }
@@ -123,27 +140,27 @@ void EditPanel::setCommandDelayMS(int row, wxString& s) {
 }
 
 void EditPanel::addCommandRow() {
-    if (cmdCount >= cmdGrid->GetNumberRows()) {
-        cmdGrid->AppendRows(1);
-        formatRow(cmdGrid->GetNumberRows() - 1);
+    if (cmdCount >= grid->GetNumberRows()) {
+        grid->AppendRows(1);
+        formatRow(grid->GetNumberRows() - 1);
         Fit();
     }
     setRowReadOnly(cmdCount, false);
 }
 
 void EditPanel::formatRow(int row) {
-    cmdGrid->SetCellEditor(row, CHANNEL_COL, new wxGridCellNumberEditor(1, NCHANNELS));
-    cmdGrid->SetCellEditor(row, CURRENT_COL, new wxGridCellFloatEditor(3, 3));
-    cmdGrid->SetCellEditor(row, DIR_COL, new wxGridCellEnumEditor(wxT("neg,pos")));
-    cmdGrid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0, 3600));
+    grid->SetCellEditor(row, CHANNEL_COL, new wxGridCellNumberEditor(1, NCHANNELS));
+    grid->SetCellEditor(row, CURRENT_COL, new wxGridCellFloatEditor(3, 3));
+    grid->SetCellEditor(row, DIR_COL, new wxGridCellEnumEditor(wxT("neg,pos")));
+    grid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0, 3600));
     //setRowReadOnly(row, true);
 }
 
 void EditPanel::setRowReadOnly(int row, bool readOnly) {
-    cmdGrid->SetReadOnly(row, CHANNEL_COL, readOnly);
-    cmdGrid->SetReadOnly(row, CURRENT_COL, readOnly);
-    cmdGrid->SetReadOnly(row, DIR_COL, readOnly);
-    cmdGrid->SetReadOnly(row, DELAY_COL, readOnly);
+    grid->SetReadOnly(row, CHANNEL_COL, readOnly);
+    grid->SetReadOnly(row, CURRENT_COL, readOnly);
+    grid->SetReadOnly(row, DIR_COL, readOnly);
+    grid->SetReadOnly(row, DELAY_COL, readOnly);
 }
 
 bool EditPanel::isCmdNumValid(int row) {
@@ -151,8 +168,8 @@ bool EditPanel::isCmdNumValid(int row) {
 }
 
 bool EditPanel::isGridCellEmpty(int row, int col) {
-    return cmdGrid->GetTable()->IsEmptyCell(row, col);
-    //return cmdGrid->GetCellValue(row, col).IsEmpty();
+    return grid->GetTable()->IsEmptyCell(row, col);
+    //return grid->GetCellValue(row, col).IsEmpty();
 }
 
 bool EditPanel::isRowComplete(int row) {

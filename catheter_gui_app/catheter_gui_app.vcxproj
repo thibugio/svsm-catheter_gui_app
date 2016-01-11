@@ -148,14 +148,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="inc\CatheterGuiFrame.h" />
-    <ClInclude Include="inc\CatheterGuiApp.h" />
+    <ClInclude Include="inc\CatheterGui.h" />
     <ClInclude Include="inc\com\common_utils.h" />
     <ClInclude Include="inc\com\pc_utils.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\CatheterGuiFrame.cpp" />
-    <ClCompile Include="src\CatheterGuiApp.cpp" />
+    <ClCompile Include="src\CatheterGui.cpp" />
     <ClCompile Include="src\com\common_utils.cpp" />
     <ClCompile Include="src\com\pc_utils.cpp" />
   </ItemGroup>

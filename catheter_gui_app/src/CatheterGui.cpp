@@ -8,6 +8,7 @@
 #include "wx/wx.h"
 #endif
 
+#include <wx/app.h>
 #include <wx/frame.h>
 #include <wx/panel.h>
 // command grid
@@ -22,7 +23,7 @@
 #include <wx/filedlg.h>
 #include <wx/wfstream.h>
 
-#include "CatheterGuiFrame.h"
+#include "CatheterGui.h"
 #include "common_utils.h"
 #include "pc_utils.h"
 
@@ -36,11 +37,29 @@
 
 #define playfile_wildcard wxT("*.play")
 
+
+IMPLEMENT_APP(CatheterGuiApp)
+
+bool CatheterGuiApp::OnInit() {
+    CatheterGuiFrame* gui = new CatheterGuiFrame(wxT("Catheter Gui"));
+    gui->Show(true);
+    return (gui != NULL);
+}
+
+wxBEGIN_EVENT_TABLE(CatheterGuiFrame, wxFrame)
+    EVT_GRID_CELL_CHANGING(CatheterGuiFrame::OnGridCellChanging)
+    EVT_BUTTON(CatheterGuiFrame::ID_SELECT_PLAYFILE_BUTTON, CatheterGuiFrame::OnSelectPlayfileButtonClicked)
+    EVT_BUTTON(CatheterGuiFrame::ID_NEW_PLAYFILE_BUTTON, CatheterGuiFrame::OnNewPlayfileButtonClicked)
+    EVT_BUTTON(CatheterGuiFrame::ID_SAVE_PLAYFILE_BUTTON, CatheterGuiFrame::OnSavePlayfileButtonClicked)
+    EVT_BUTTON(CatheterGuiFrame::ID_SEND_COMMANDS_BUTTON, CatheterGuiFrame::OnSendCommandsButtonClicked)
+    EVT_BUTTON(CatheterGuiFrame::ID_SEND_RESET_BUTTON, CatheterGuiFrame::OnSendResetButtonClicked)
+wxEND_EVENT_TABLE()
+
 CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     wxFrame(NULL, wxID_ANY, title) {
 
     grid = new wxGrid(this, wxID_ANY);
-    grid->CreateGrid(0,0);    
+    grid->CreateGrid(0, 0);
 
     grid->EnableDragGridSize(true);
     grid->SetTabBehaviour(wxGrid::Tab_Wrap);
@@ -56,8 +75,6 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
 
     cmdCount = 0;
 
-    grid->Connect(wxEVT_GRID_CELL_CHANGING, wxGridEventHandler(CatheterGuiFrame::OnGridCellChanging));
-    
     // status panel    
     statusText = new wxStaticText(this, wxID_ANY, wxEmptyString);
 
@@ -67,22 +84,11 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     savePlayfileButton = new wxButton(this, ID_SAVE_PLAYFILE_BUTTON, wxT("Save Playfile"));
     sendCommandsButton = new wxButton(this, ID_SEND_COMMANDS_BUTTON, wxT("Send Commands"));
     sendResetButton = new wxButton(this, ID_SEND_RESET_BUTTON, wxT("Send Reset"));
-    
+
     serialConnected = false;
     playfileSaved = true;
     playfilePath = wxEmptyString;
     portName = wxEmptyString;
-
-    this->Connect(ID_SELECT_PLAYFILE_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED,
-        wxCommandEventHandler(CatheterGuiFrame::OnSelectPlayfileButtonClicked));
-    this->Connect(ID_NEW_PLAYFILE_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED,
-        wxCommandEventHandler(CatheterGuiFrame::OnNewPlayfileButtonClicked));
-    this->Connect(ID_SAVE_PLAYFILE_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED,
-        wxCommandEventHandler(CatheterGuiFrame::OnSavePlayfileButtonClicked));
-    this->Connect(ID_SEND_COMMANDS_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED,
-        wxCommandEventHandler(CatheterGuiFrame::OnSendCommandsButtonClicked));
-    this->Connect(ID_SEND_RESET_BUTTON, wxEVT_COMMAND_BUTTON_CLICKED,
-        wxCommandEventHandler(CatheterGuiFrame::OnSendResetButtonClicked));
 
     // frame
     wxBoxSizer* hbox = new wxBoxSizer(wxHORIZONTAL);
@@ -154,17 +160,17 @@ void CatheterGuiFrame::OnSelectPlayfileButtonClicked(wxCommandEvent& e) {
     if (!path.IsEmpty()) {
         playfileSaved = false;
         playfilePath = path;
-        
+
         resetDefaultGrid(NROWS_DEFAULT);
         loadPlayfile(playfilePath);
-        
+
         setStatusText(wxString::Format(wxT("Editing Existing Playfile %s\n"), playfilePath));
     }
 }
 
 void CatheterGuiFrame::OnNewPlayfileButtonClicked(wxCommandEvent& e) {
     warnSavePlayfile();
-    
+
     // clear command grid
     resetDefaultGrid(NROWS_DEFAULT);
 
@@ -327,10 +333,10 @@ void CatheterGuiFrame::formatDefaultGrid(int nrows) {
 void CatheterGuiFrame::resetDefaultGrid(int nrows) {
     gridCmds.clear();
     grid->ClearGrid();
-    
+
     if (grid->GetNumberRows() > nrows)
         grid->DeleteRows(grid->GetNumberRows() - nrows);
-    else 
+    else
         for (int i = 0; i < (nrows - grid->GetNumberRows()); i++)
             addGridRow();
     formatDefaultGrid(nrows);

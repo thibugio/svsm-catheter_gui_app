@@ -39,6 +39,8 @@ class CatheterGuiFrame : public wxFrame {
             ID_SEND_RESET_BUTTON
         };
 
+        wxDECLARE_EVENT_TABLE();
+
     private:
         // command grid
         void setRowReadOnly(int row, bool readOnly);

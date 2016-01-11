@@ -33,7 +33,7 @@
 #define DELAY_COL 3
 
 #define NFIELDS 4
-#define NROWS_DEFAULT NCHANNELS
+#define NROWS_DEFAULT 1//NCHANNELS
 
 #define playfile_wildcard wxT("*.play")
 
@@ -86,7 +86,7 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     sendResetButton = new wxButton(this, ID_SEND_RESET_BUTTON, wxT("Send Reset"));
 
     serialConnected = false;
-    playfileSaved = true;
+    playfileSaved = false;
     playfilePath = wxEmptyString;
     portName = wxEmptyString;
 
@@ -126,29 +126,45 @@ CatheterGuiFrame::~CatheterGuiFrame() {
 // command grid
 void CatheterGuiFrame::OnGridCellChanging(wxGridEvent& e) {
     //called when edited cell loses focus
+    //last value: grid->GetCellValue(row, col)
+    //pending value: e.GetString()
+
     int row = e.GetRow();
     int col = e.GetCol();
 
+    int channel;
+    double currentMA;
+    dir_t direction;
+    int delayMS;
     switch (col) {
     case CHANNEL_COL:
+        channel = wxAtoi(e.GetString());
+        setGridRowChannel(row, channel);
         break;
     case CURRENT_COL:
-        setGridRowCurrentMA(row, getGridRowCurrentMA(row));
+        currentMA = wxAtof(e.GetString());
+        setGridRowCurrentMA(row, currentMA);
         break;
     case DIRECTION_COL:
-        setGridRowDirection(row, getGridRowDirection(row));
+        direction = (wxStrcmp(dir_choices[DIR_POS], e.GetString()) ? DIR_NEG : DIR_POS);
+        setGridRowDirection(row, direction);
         break;
     case DELAY_COL:
+        delayMS = wxAtoi(e.GetString());
+        setGridRowDelayMS(row, delayMS);
         break;
     }
 
-    if (isGridRowComplete(row)) {
+    if (row == cmdCount && isGridRowComplete(row)) {
         cmdCount++;
-        //gridCmds.push_back(parseGridRowCmd(row));
-        addGridRow();
-        wxMessageBox(wxString::Format("command: channel=%d current=%3.3f delay=%d",
-            gridCmds[row].channel, gridCmds[row].currentMA, gridCmds[row].delayMS));
+        if (cmdCount < grid->GetNumberRows())
+            setRowReadOnly(cmdCount, false);
+        else
+            addGridRow(false);
+        wxMessageBox(wxString::Format("completed command %d", cmdCount));
     }
+
+    e.Skip();
 }
 
 // control buttons
@@ -306,10 +322,10 @@ bool CatheterGuiFrame::isGridRowComplete(int row) {
     return row_complete;
 }
 
-void CatheterGuiFrame::addGridRow() {
+void CatheterGuiFrame::addGridRow(bool readOnly) {
     grid->AppendRows(1);
     formatDefaultRow(grid->GetNumberRows() - 1);
-    setRowReadOnly(grid->GetNumberRows() - 1, true);
+    setRowReadOnly(grid->GetNumberRows() - 1, readOnly);
 }
 
 void CatheterGuiFrame::formatDefaultGrid(int nrows) {
@@ -338,11 +354,10 @@ void CatheterGuiFrame::resetDefaultGrid(int nrows) {
         grid->DeleteRows(grid->GetNumberRows() - nrows);
     else
         for (int i = 0; i < (nrows - grid->GetNumberRows()); i++)
-            addGridRow();
+            addGridRow(true);
     formatDefaultGrid(nrows);
 
-    for (int i = 0; i < nrows; i++)
-        setRowReadOnly(i, i != 0);
+    setRowReadOnly(0, false);
 }
 
 void CatheterGuiFrame::setRowReadOnly(int row, bool readOnly) {
@@ -357,10 +372,11 @@ void CatheterGuiFrame::setRowReadOnly(int row, bool readOnly) {
 void CatheterGuiFrame::formatDefaultRow(int row) {
     if (row >= grid->GetNumberRows())
         return;
+    const wxString choices[] = {wxT("neg"), wxT("pos")};
     grid->SetCellEditor(row, CHANNEL_COL, new wxGridCellNumberEditor(1, NCHANNELS));
     grid->SetCellEditor(row, CURRENT_COL, new wxGridCellFloatEditor(3, 3));
-    grid->SetCellEditor(row, DIRECTION_COL, new wxGridCellEnumEditor(wxT("neg,pos")));
-    grid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0, 3600));
+    grid->SetCellEditor(row, DIRECTION_COL, new wxGridCellChoiceEditor(WXSIZEOF(choices), choices));
+    grid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0,3600));
     setRowReadOnly(row, true);
 }
 
@@ -408,14 +424,14 @@ void CatheterGuiFrame::loadPlayfile(const wxString& path) {
     loadPlayFile(path.mb_str(), gridCmds);
     for (int i = 0; i < gridCmds.size(); i++) {
         cmdCount++;
-        if (i > grid->GetNumberRows())
-            addGridRow();
-        setRowReadOnly(i, false);
+        if (i >= grid->GetNumberRows())
+            addGridRow(false);
+
         setGridRowChannel(i, gridCmds[i].channel);
         setGridRowCurrentMA(i, gridCmds[i].currentMA);
         setGridRowDelayMS(i, gridCmds[i].delayMS);
     }
-    addGridRow();
+    addGridRow(false);
 }
 
 void CatheterGuiFrame::unloadPlayfile(const wxString& path) {

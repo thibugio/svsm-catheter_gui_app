@@ -58,7 +58,7 @@ class CatheterGuiFrame : public wxFrame {
     bool isGridCellEmpty(int row, int col);
     bool isGridRowComplete(int row);
     CatheterChannelCmd parseGridRowCmd(int row);
-    void addGridRow();
+    void addGridRow(bool readOnly);
     void setGridRowChannel(int row, int channel);
     void setGridRowCurrentMA(int row, double currentMA);
     void setGridRowDirection(int row, dir_t direction);

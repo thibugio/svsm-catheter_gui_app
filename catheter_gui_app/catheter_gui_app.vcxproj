@@ -157,6 +157,9 @@
     <ClCompile Include="src\com\common_utils.cpp" />
     <ClCompile Include="src\com\pc_utils.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="simple.play" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

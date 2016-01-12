@@ -151,11 +151,13 @@
     <ClInclude Include="inc\CatheterGui.h" />
     <ClInclude Include="inc\com\common_utils.h" />
     <ClInclude Include="inc\com\pc_utils.h" />
+    <ClInclude Include="inc\CatheterGrid.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CatheterGui.cpp" />
     <ClCompile Include="src\com\common_utils.cpp" />
     <ClCompile Include="src\com\pc_utils.cpp" />
+    <ClCompile Include="src\CatheterGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="find_serial_ports.py" />

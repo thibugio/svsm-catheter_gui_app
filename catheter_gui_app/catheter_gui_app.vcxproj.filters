@@ -24,6 +24,9 @@
     <ClInclude Include="inc\CatheterGui.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="inc\CatheterGrid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\com\common_utils.cpp">
@@ -33,6 +36,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\CatheterGui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CatheterGrid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

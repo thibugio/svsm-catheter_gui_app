@@ -7,13 +7,12 @@
 class wxString;
 class wxApp;
 
-class wxGrid;
-class wxGridEvent;
-
 class wxButton;
 class wxCommandEvent;
 
 class wxStaticText;
+
+class CatheterGrid;
 
 struct CatheterChannelCmd;
 enum dir_t;
@@ -29,9 +28,6 @@ class CatheterGuiFrame : public wxFrame {
     CatheterGuiFrame(const wxString& title);
     ~CatheterGuiFrame();
 
-    // command grid
-    void OnGridCellChanging(wxGridEvent& e);
-    void OnGridTabbing(wxGridEvent& e);
     // control buttons
     void OnRefreshSerialButtonClicked(wxCommandEvent& e);
     void OnSelectPlayfileButtonClicked(wxCommandEvent& e);
@@ -52,25 +48,6 @@ class CatheterGuiFrame : public wxFrame {
     wxDECLARE_EVENT_TABLE();
 
     private:
-    // command grid
-    void setRowReadOnly(int row, bool readOnly);
-    void formatDefaultRow(int row);
-    void formatDefaultGrid(int nrows);
-    void resetDefaultGrid(int nrows);
-    bool isGridRowNumValid(int row);
-    bool isGridCellEmpty(int row, int col);
-    bool isGridRowComplete(int row);
-    CatheterChannelCmd parseGridRowCmd(int row);
-    void addGridRow(bool readOnly);
-    void setGridRowChannel(int row, int channel);
-    void setGridRowChannel(int row, const wxString& channel);
-    void setGridRowCurrentMA(int row, double currentMA);
-    void setGridRowDirection(int row, dir_t direction);
-    void setGridRowDelayMS(int row, int delayMS);
-    int getGridRowChannel(int row);
-    double getGridRowCurrentMA(int row);
-    dir_t getGridRowDirection(int row);
-    int getGridRowDelayMS(int row);
     // status panel
     void setStatusText(const wxString& msg);
     // control buttons
@@ -85,9 +62,7 @@ class CatheterGuiFrame : public wxFrame {
     bool closeSerialConnection();
 
     wxPanel* parentPanel;
-    // command grid
-    wxGrid* grid;
-    unsigned int cmdCount;
+    CatheterGrid* grid;
     std::vector<CatheterChannelCmd> gridCmds;
     // status panel
     wxStaticText* statusText;

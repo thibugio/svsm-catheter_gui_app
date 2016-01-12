@@ -38,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="simple.play" />
+    <None Include="find_serial_ports.py" />
   </ItemGroup>
 </Project>

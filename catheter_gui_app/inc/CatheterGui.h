@@ -31,7 +31,9 @@ class CatheterGuiFrame : public wxFrame {
 
     // command grid
     void OnGridCellChanging(wxGridEvent& e);
+    void OnGridTabbing(wxGridEvent& e);
     // control buttons
+    void OnRefreshSerialButtonClicked(wxCommandEvent& e);
     void OnSelectPlayfileButtonClicked(wxCommandEvent& e);
     void OnNewPlayfileButtonClicked(wxCommandEvent& e);
     void OnSavePlayfileButtonClicked(wxCommandEvent& e);
@@ -43,7 +45,8 @@ class CatheterGuiFrame : public wxFrame {
         ID_NEW_PLAYFILE_BUTTON,
         ID_SAVE_PLAYFILE_BUTTON,
         ID_SEND_COMMANDS_BUTTON,
-        ID_SEND_RESET_BUTTON
+        ID_SEND_RESET_BUTTON, 
+        ID_REFRESH_SERIAL_BUTTON
     };
 
     wxDECLARE_EVENT_TABLE();
@@ -60,6 +63,7 @@ class CatheterGuiFrame : public wxFrame {
     CatheterChannelCmd parseGridRowCmd(int row);
     void addGridRow(bool readOnly);
     void setGridRowChannel(int row, int channel);
+    void setGridRowChannel(int row, const wxString& channel);
     void setGridRowCurrentMA(int row, double currentMA);
     void setGridRowDirection(int row, dir_t direction);
     void setGridRowDelayMS(int row, int delayMS);
@@ -77,11 +81,13 @@ class CatheterGuiFrame : public wxFrame {
     void unloadPlayfile(const wxString& path);
     bool sendCommands(std::vector<CatheterChannelCmd> cmdVect);
     bool sendResetCommand();
+    bool openSerialConnection();
+    bool closeSerialConnection();
 
+    wxPanel* parentPanel;
     // command grid
     wxGrid* grid;
     unsigned int cmdCount;
-    wxString* dir_choices;
     std::vector<CatheterChannelCmd> gridCmds;
     // status panel
     wxStaticText* statusText;
@@ -91,6 +97,7 @@ class CatheterGuiFrame : public wxFrame {
     wxButton* savePlayfileButton;
     wxButton* sendCommandsButton;
     wxButton* sendResetButton;
+    wxButton* refreshSerialButton;
     bool serialConnected;
     bool playfileSaved;
     wxString playfilePath;

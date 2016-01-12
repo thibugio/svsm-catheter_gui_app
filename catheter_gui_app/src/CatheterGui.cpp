@@ -22,6 +22,14 @@
 #include <wx/button.h>
 #include <wx/filedlg.h>
 #include <wx/wfstream.h>
+// pyserial
+#include <wx/numdlg.h>
+#include <wx/utils.h>
+#include <wx/process.h>
+#include <wx/filefn.h>
+#ifdef __WINDOWS__
+#include "wx/dde.h"
+#endif
 
 #include "CatheterGui.h"
 #include "common_utils.h"
@@ -35,7 +43,13 @@
 #define NFIELDS 4
 #define NROWS_DEFAULT 1//NCHANNELS
 
+// file definitions
 #define playfile_wildcard wxT("*.play")
+#define portfile wxT("ports.txt")
+
+#define DIRNEGSTR wxT("neg")
+#define DIRPOSSTR wxT("pos")
+#define GLOBALSTR wxT("global")
 
 
 IMPLEMENT_APP(CatheterGuiApp)
@@ -48,6 +62,8 @@ bool CatheterGuiApp::OnInit() {
 
 wxBEGIN_EVENT_TABLE(CatheterGuiFrame, wxFrame)
     EVT_GRID_CELL_CHANGING(CatheterGuiFrame::OnGridCellChanging)
+    EVT_GRID_TABBING(CatheterGuiFrame::OnGridTabbing)
+    EVT_BUTTON(CatheterGuiFrame::ID_REFRESH_SERIAL_BUTTON, CatheterGuiFrame::OnRefreshSerialButtonClicked)
     EVT_BUTTON(CatheterGuiFrame::ID_SELECT_PLAYFILE_BUTTON, CatheterGuiFrame::OnSelectPlayfileButtonClicked)
     EVT_BUTTON(CatheterGuiFrame::ID_NEW_PLAYFILE_BUTTON, CatheterGuiFrame::OnNewPlayfileButtonClicked)
     EVT_BUTTON(CatheterGuiFrame::ID_SAVE_PLAYFILE_BUTTON, CatheterGuiFrame::OnSavePlayfileButtonClicked)
@@ -58,32 +74,30 @@ wxEND_EVENT_TABLE()
 CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     wxFrame(NULL, wxID_ANY, title) {
 
-    grid = new wxGrid(this, wxID_ANY);
+    parentPanel = new wxPanel(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN);
+
+    grid = new wxGrid(parentPanel, wxID_ANY);
     grid->CreateGrid(0, 0);
 
     grid->EnableDragGridSize(true);
-    grid->SetTabBehaviour(wxGrid::Tab_Wrap);
 
     grid->AppendCols(NFIELDS);
     grid->AppendRows(NROWS_DEFAULT);
 
     formatDefaultGrid(NROWS_DEFAULT);
 
-    dir_choices = new wxString[2];
-    dir_choices[DIR_POS] = wxT("pos");
-    dir_choices[DIR_NEG] = wxT("neg");
-
     cmdCount = 0;
 
     // status panel    
-    statusText = new wxStaticText(this, wxID_ANY, wxEmptyString);
+    statusText = new wxStaticText(parentPanel, wxID_ANY, wxEmptyString);
 
     // control buttons
-    selectPlayfileButton = new wxButton(this, ID_SELECT_PLAYFILE_BUTTON, wxT("Select Playfile"));
-    newPlayfileButton = new wxButton(this, ID_NEW_PLAYFILE_BUTTON, wxT("New Playfile"));
-    savePlayfileButton = new wxButton(this, ID_SAVE_PLAYFILE_BUTTON, wxT("Save Playfile"));
-    sendCommandsButton = new wxButton(this, ID_SEND_COMMANDS_BUTTON, wxT("Send Commands"));
-    sendResetButton = new wxButton(this, ID_SEND_RESET_BUTTON, wxT("Send Reset"));
+    selectPlayfileButton = new wxButton(parentPanel, ID_SELECT_PLAYFILE_BUTTON, wxT("Select Playfile"));
+    newPlayfileButton = new wxButton(parentPanel, ID_NEW_PLAYFILE_BUTTON, wxT("New Playfile"));
+    savePlayfileButton = new wxButton(parentPanel, ID_SAVE_PLAYFILE_BUTTON, wxT("Save Playfile"));
+    sendCommandsButton = new wxButton(parentPanel, ID_SEND_COMMANDS_BUTTON, wxT("Send Commands"));
+    sendResetButton = new wxButton(parentPanel, ID_SEND_RESET_BUTTON, wxT("Send Reset"));
+    refreshSerialButton = new wxButton(parentPanel, ID_REFRESH_SERIAL_BUTTON, wxT("Refresh Serial"));
 
     serialConnected = false;
     playfileSaved = false;
@@ -97,25 +111,34 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     hbox->Add(savePlayfileButton);
     hbox->Add(sendCommandsButton);
     hbox->Add(sendResetButton);
+    hbox->Add(refreshSerialButton);
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
     vbox->Add(hbox, 1, wxEXPAND | wxALL, 5);
     vbox->Add(grid, 1, wxEXPAND | wxALL, 5);
     vbox->Add(statusText, 1, wxEXPAND | wxALL, 5);
 
-    this->SetSizer(vbox);
-    vbox->SetSizeHints(this);
-    vbox->Fit(this);
+    parentPanel->SetSizer(vbox);
+    vbox->SetSizeHints(parentPanel);
+    vbox->Fit(parentPanel);
 
     this->Fit();
     this->Center();
 
     setStatusText(wxT("Welcome to Catheter Gui"));
+
+    // try to open serial connection
+    if (openSerialConnection()) {
+        setStatusText(wxString::Format("Serial Connected on port %s", portName));
+    } else {
+        setStatusText(wxString::Format("Serial Disconnected"));
+    }
 }
 
 CatheterGuiFrame::~CatheterGuiFrame() {
+    wxMessageBox(wxT("CatheterGuiFrame Destructor"));
     if (serialConnected) {
-        // send reset command
-        // close serial connection
+        sendResetCommand();
+        closeSerialConnection();
     }
 }
 
@@ -132,26 +155,19 @@ void CatheterGuiFrame::OnGridCellChanging(wxGridEvent& e) {
     int row = e.GetRow();
     int col = e.GetCol();
 
-    int channel;
-    double currentMA;
-    dir_t direction;
-    int delayMS;
     switch (col) {
     case CHANNEL_COL:
-        channel = wxAtoi(e.GetString());
-        setGridRowChannel(row, channel);
+        //setGridRowChannel(row, wxAtoi(e.GetString()));
+        setGridRowChannel(row, e.GetString());
         break;
     case CURRENT_COL:
-        currentMA = wxAtof(e.GetString());
-        setGridRowCurrentMA(row, currentMA);
+        setGridRowCurrentMA(row, wxAtof(e.GetString()));
         break;
     case DIRECTION_COL:
-        direction = (wxStrcmp(dir_choices[DIR_POS], e.GetString()) ? DIR_NEG : DIR_POS);
-        setGridRowDirection(row, direction);
+        setGridRowDirection(row, (wxStrcmp(DIRPOSSTR, e.GetString()) ? DIR_NEG : DIR_POS));
         break;
     case DELAY_COL:
-        delayMS = wxAtoi(e.GetString());
-        setGridRowDelayMS(row, delayMS);
+        setGridRowDelayMS(row, wxAtoi(e.GetString()));
         break;
     }
 
@@ -165,6 +181,10 @@ void CatheterGuiFrame::OnGridCellChanging(wxGridEvent& e) {
     }
 
     e.Skip();
+}
+
+void CatheterGuiFrame::OnGridTabbing(wxGridEvent& e) {
+    //grid->SetFocus();
 }
 
 // control buttons
@@ -224,6 +244,14 @@ void CatheterGuiFrame::OnSendResetButtonClicked(wxCommandEvent& e) {
     }
 }
 
+void CatheterGuiFrame::OnRefreshSerialButtonClicked(wxCommandEvent& e) {
+    if (openSerialConnection()) {
+        setStatusText(wxString::Format("Serial Connected on port %s", portName));
+    } else {
+        setStatusText(wxString::Format("Serial Disconnected"));
+    }
+}
+
 //////////////////////////////////
 // command grid private methods //
 //////////////////////////////////
@@ -232,7 +260,15 @@ void CatheterGuiFrame::setGridRowChannel(int row, int channel) {
     if (isGridRowNumValid(row)) {
         if (channel > 0 && channel <= NCHANNELS) {
             grid->SetCellValue(wxGridCellCoords(row, CHANNEL_COL), wxString::Format("%d", channel));
+        } else if (channel == GLOBAL_ADDR) {
+            grid->SetCellValue(wxGridCellCoords(row, CHANNEL_COL), GLOBALSTR);
         }
+    }
+}
+
+void CatheterGuiFrame::setGridRowChannel(int row, const wxString& channel) {
+    if (isGridRowNumValid(row)) {
+        grid->SetCellValue(wxGridCellCoords(row, CHANNEL_COL), channel);
     }
 }
 
@@ -250,12 +286,12 @@ void CatheterGuiFrame::setGridRowDirection(int row, dir_t direction) {
     if (isGridRowNumValid(row)) {
         switch (direction) {
         case DIR_POS:
-            grid->SetCellValue(wxGridCellCoords(row, DIRECTION_COL), dir_choices[DIR_POS]);
+            grid->SetCellValue(wxGridCellCoords(row, DIRECTION_COL), DIRPOSSTR);
             if (!isGridCellEmpty(row, CURRENT_COL) && getGridRowCurrentMA(row) < 0)
                 setGridRowCurrentMA(row, getGridRowCurrentMA(row) * -1);
             break;
         case DIR_NEG:
-            grid->SetCellValue(wxGridCellCoords(row, DIRECTION_COL), dir_choices[DIR_NEG]);
+            grid->SetCellValue(wxGridCellCoords(row, DIRECTION_COL), DIRNEGSTR);
             if (!isGridCellEmpty(row, CURRENT_COL) && getGridRowCurrentMA(row) > 0)
                 setGridRowCurrentMA(row, getGridRowCurrentMA(row) * -1);
             break;
@@ -272,7 +308,11 @@ void CatheterGuiFrame::setGridRowDelayMS(int row, int delayMS) {
 }
 
 int CatheterGuiFrame::getGridRowChannel(int row) {
-    return wxAtoi(grid->GetCellValue(wxGridCellCoords(row, CHANNEL_COL)));
+    const wxString& channel = grid->GetCellValue(wxGridCellCoords(row, CHANNEL_COL));
+    if (!wxStrcmp(channel, "global"))
+        return GLOBAL_ADDR;
+    else
+        return wxAtoi(channel);
 }
 
 double CatheterGuiFrame::getGridRowCurrentMA(int row) {
@@ -281,7 +321,7 @@ double CatheterGuiFrame::getGridRowCurrentMA(int row) {
 
 dir_t CatheterGuiFrame::getGridRowDirection(int row) {
     const wxString& dirStr = grid->GetCellValue(wxGridCellCoords(row, DIRECTION_COL));
-    if (!wxStrcmp(dirStr, dir_choices[DIR_POS])) {
+    if (!wxStrcmp(dirStr, DIRPOSSTR)) {
         return DIR_POS;
     } else {
         return DIR_NEG;
@@ -347,14 +387,15 @@ void CatheterGuiFrame::formatDefaultGrid(int nrows) {
 }
 
 void CatheterGuiFrame::resetDefaultGrid(int nrows) {
+    playfileSaved = false;
+    cmdCount = 0;
     gridCmds.clear();
     grid->ClearGrid();
 
-    if (grid->GetNumberRows() > nrows)
-        grid->DeleteRows(grid->GetNumberRows() - nrows);
-    else
-        for (int i = 0; i < (nrows - grid->GetNumberRows()); i++)
-            addGridRow(true);
+    grid->DeleteRows(grid->GetNumberRows());
+    for (int i = 0; i < nrows; i++)
+        addGridRow(true);
+
     formatDefaultGrid(nrows);
 
     setRowReadOnly(0, false);
@@ -372,11 +413,19 @@ void CatheterGuiFrame::setRowReadOnly(int row, bool readOnly) {
 void CatheterGuiFrame::formatDefaultRow(int row) {
     if (row >= grid->GetNumberRows())
         return;
-    const wxString choices[] = {wxT("neg"), wxT("pos")};
-    grid->SetCellEditor(row, CHANNEL_COL, new wxGridCellNumberEditor(1, NCHANNELS));
+    const wxString direction_opts[] = {DIRNEGSTR, DIRPOSSTR};
+    
+    wxString channel_opts[NCHANNELS + 1];
+    channel_opts[0] = GLOBALSTR;
+    for (int i = 1; i <= NCHANNELS; i++)
+        channel_opts[i] = wxString::Format("%d", i);
+
+    grid->SetCellEditor(row, CHANNEL_COL, new wxGridCellChoiceEditor(WXSIZEOF(channel_opts), (const wxString*)channel_opts));
     grid->SetCellEditor(row, CURRENT_COL, new wxGridCellFloatEditor(3, 3));
-    grid->SetCellEditor(row, DIRECTION_COL, new wxGridCellChoiceEditor(WXSIZEOF(choices), choices));
+    grid->SetCellRenderer(row, CURRENT_COL, new wxGridCellFloatRenderer());
+    grid->SetCellEditor(row, DIRECTION_COL, new wxGridCellChoiceEditor(WXSIZEOF(direction_opts), direction_opts));
     grid->SetCellEditor(row, DELAY_COL, new wxGridCellNumberEditor(0,3600));
+    grid->SetCellRenderer(row, DELAY_COL, new wxGridCellNumberRenderer());
     setRowReadOnly(row, true);
 }
 
@@ -445,7 +494,7 @@ void CatheterGuiFrame::unloadPlayfile(const wxString& path) {
 
 void CatheterGuiFrame::warnSavePlayfile() {
     if (!playfileSaved) {
-        if (wxMessageBox(wxT("Current content has not been saved!"), wxT("Proceed?"),
+        if (wxMessageBox(wxT("Current content has not been saved! Proceed?"), wxT("Warning!"),
             wxICON_QUESTION | wxYES_NO, this) == wxNO) {
             savePlayfile();
             return;
@@ -467,4 +516,107 @@ bool CatheterGuiFrame::sendResetCommand() {
     resetVect.push_back(resetCommand());
 
     return sendCommands(resetVect);
+}
+
+std::vector<wxString> getSerialPortsFromWxProcess() {
+    std::vector<wxString> ports;
+
+    wxString pythonexe = wxT("C:\\Users\\acceber\\AppData\\Local\\Programs\\Python\\Python35-32\\python.exe");
+    wxString script = wxGetCwd() + wxT("\\find_serial_ports.py");
+
+    wxString cmd_to_stdout = wxString::Format("%s %s", pythonexe, script);
+
+    wxProcess* process = wxProcess::Open(cmd_to_stdout);
+    if (process) {
+        wxInputStream* std_out = process->GetInputStream();
+        if (std_out) {
+            wxString p = wxEmptyString;
+            while (std_out->CanRead()) {
+                char buf[64];
+                std_out->Read(buf, 64);
+                wxString temp(buf);
+                if (!temp.IsEmpty()) {
+                    p = p + temp;
+                }
+            }
+            wxMessageBox(wxString::Format("Found Serial Ports: %s", p));
+            wxString first = wxEmptyString;
+            wxString rest;
+            while (first.length < p.length) {
+                first = p.BeforeFirst('\n', &rest);
+                if (first.length < p.length) {
+                    ports.push_back(first);
+                    p = rest;
+                }
+            }
+        } else {
+            wxMessageBox(wxT("Could not open process stdout"));
+        }
+    } else {
+        wxMessageBox(wxString::Format("Could not launch process %s", cmd_to_stdout));
+    }
+    if (wxProcess::Exists(process->GetPid()))
+        wxProcess::Kill(process->GetPid());
+    
+    return ports;
+}
+
+std::vector<wxString> getSerialPortsFromWxShell() {
+    std::vector<wxString> ports;
+
+    wxString pythonexe = wxT("C:\\Users\\acceber\\AppData\\Local\\Programs\\Python\\Python35-32\\python.exe");
+    wxString script = wxGetCwd() + wxT("\\find_serial_ports.py");
+    wxString fullPortfile = wxGetCwd() + "\\" + portfile;
+
+    wxString cmd_to_file = wxString::Format("%s %s %s", pythonexe, script, fullPortfile);
+    
+    int exit_code = wxShell(cmd_to_file);
+
+    if (exit_code == 0 && wxFileExists(portfile)) {
+        wxFile* f = new wxFile(portfile);
+        if (f->IsOpened()) {
+            std::vector<wxString> ports;
+            size_t ret = 1;
+            while (ret > 0) {
+                char buf[64];
+                ret = f->Read(buf, 64);
+                wxString p(buf);
+                if (!p.IsEmpty()) {
+                    ports.push_back(p);
+                }
+            }
+        }
+    }
+
+    return ports;
+}
+
+std::vector<wxString> getSerialPorts() {
+    return getSerialPortsFromWxProcess();
+    //return getSerialPortsFromWxShell();
+}
+
+bool CatheterGuiFrame::openSerialConnection() {
+    if (wxFileExists(portfile)) {
+        wxRemoveFile(portfile);
+    }
+
+    std::vector<wxString> ports = getSerialPorts();
+
+    if (!ports.empty()) {
+        for (int i = 0; i < ports.size(); i++) {
+            wxMessageBox(wxString::Format("Found Serial Port: %s (%d/%d)", ports[i], i, ports.size()));
+        }
+        int which_port = wxGetNumberFromUser(wxEmptyString, wxT("Select Serial Port Number"), wxEmptyString, 0, 0, ports.size(), this);
+        wxMessageBox(wxString::Format("Selected Serial Port: %s", ports[which_port]));
+        portName = ports[which_port];
+    }
+    return (!portName.IsEmpty());
+}
+
+bool CatheterGuiFrame::closeSerialConnection() {
+    if (wxFileExists(portfile)) {
+        wxRemoveFile(portfile);
+    }
+    return !serialConnected;
 }

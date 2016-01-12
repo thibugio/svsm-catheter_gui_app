@@ -158,6 +158,7 @@
     <ClCompile Include="src\com\pc_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="find_serial_ports.py" />
     <None Include="simple.play" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

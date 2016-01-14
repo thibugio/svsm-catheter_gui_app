@@ -88,12 +88,12 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;WINVER=0x0400;__WXMSW__;wxUSE_GUI=1;__WXDEBUG__;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Users\acceber\Documents\Visual Studio 2015\Projects\catheter_gui_app\catheter_gui_app\inc;C:\wxWidgets-3.0.2\include;C:\wxWidgets-3.0.2\include\msvc;C:\Users\acceber\Documents\Visual Studio 2015\Projects\catheter_gui_app\catheter_gui_app\inc\com;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\acceber\Documents\Visual Studio 2015\Projects\catheter_gui_app\catheter_gui_app\inc;C:\wxWidgets-3.0.2\include;C:\wxWidgets-3.0.2\include\msvc;C:\Users\acceber\Documents\Visual Studio 2015\Projects\catheter_gui_app\catheter_gui_app\inc\com;C:\Users\acceber\Documents\Visual Studio 2015\Projects\catheter_gui_app\catheter_gui_app\inc\ser;C:\boost\boost_1_60_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\wxWidgets-3.0.2\lib\vc_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\wxWidgets-3.0.2\lib\vc_lib;C:\boost\boost_1_60_0\stage\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wxmsw30ud_core.lib;wxbase30ud.lib;comctl32.lib;rpcrt4.lib;winmm.lib;advapi32.lib;wsock32.lib;wxpngd.lib;wxzlibd.lib;wxjpegd.lib;wxtiffd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -152,12 +152,14 @@
     <ClInclude Include="inc\com\common_utils.h" />
     <ClInclude Include="inc\com\pc_utils.h" />
     <ClInclude Include="inc\CatheterGrid.h" />
+    <ClInclude Include="inc\ser\SerialSender.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\CatheterGui.cpp" />
     <ClCompile Include="src\com\common_utils.cpp" />
     <ClCompile Include="src\com\pc_utils.cpp" />
     <ClCompile Include="src\CatheterGrid.cpp" />
+    <ClCompile Include="src\ser\SerialSender.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="find_serial_ports.py" />

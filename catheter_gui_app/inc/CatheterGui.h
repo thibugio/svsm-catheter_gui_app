@@ -17,6 +17,8 @@ class CatheterGrid;
 struct CatheterChannelCmd;
 enum dir_t;
 
+class SerialSender;
+
 
 class CatheterGuiApp : public wxApp {
     public:
@@ -57,13 +59,14 @@ class CatheterGuiFrame : public wxFrame {
     void loadPlayfile(const wxString& path);
     void unloadPlayfile(const wxString& path);
     bool sendCommands(std::vector<CatheterChannelCmd> cmdVect);
+    bool sendGridCommands();
     bool sendResetCommand();
-    bool openSerialConnection();
+    bool refreshSerialConnection();
     bool closeSerialConnection();
 
     wxPanel* parentPanel;
     CatheterGrid* grid;
-    std::vector<CatheterChannelCmd> gridCmds;
+
     // status panel
     wxStaticText* statusText;
     // control buttons
@@ -73,10 +76,10 @@ class CatheterGuiFrame : public wxFrame {
     wxButton* sendCommandsButton;
     wxButton* sendResetButton;
     wxButton* refreshSerialButton;
-    bool serialConnected;
     bool playfileSaved;
     wxString playfilePath;
-    wxString portName;
+    // serial connection
+    SerialSender* ss;
 };
 
 #endif

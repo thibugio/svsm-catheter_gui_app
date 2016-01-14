@@ -1,6 +1,4 @@
-/* common_utils.h
-*/
-
+#pragma once
 #ifndef COMMON_UTILS_H
 #define COMMON_UTILS_H
 
@@ -57,40 +55,75 @@ struct CatheterPacket {
     std::vector<CatheterChannelCmd> cmds;
 };
 
-/** \brief uint8_t compactCmdVal(int poll, int en, int update, dir_t dir): return the command number (0-15) associated with the specified state */
+///////////////////////
+// "private" methods //
+///////////////////////
+
+/** \brief uint8_t compactCmdVal(int poll, int en, int update, dir_t dir): 
+    return the command number (0-15) associated with the specified state */
 uint8_t compactCmdVal(bool poll, bool en, bool update, dir_t dir);
 
-/** \brief void expandCmdVal(uint8_t cmdVal, int * poll, int * en, int * update, dir_t * dir): return the state associated with the specified commnd number (0-15) */
+/** \brief void expandCmdVal(uint8_t cmdVal, int * poll, int * en, int * update, dir_t * dir): 
+    return the state associated with the specified commnd number (0-15) */
 void expandCmdVal(uint8_t cmdVal, bool* poll, bool* en, bool* update, dir_t * dir);
 
-/** \brief void compactCatheterCmd(CatheterChannelCmd& cmd, unsigned int* cmd4, unsigned int* data12): extract the 12-bit DAC data and 4-bit command value from a CatheterChannelCmd */
+/** \brief void compactCatheterCmd(CatheterChannelCmd& cmd, unsigned int* cmd4, unsigned int* data12): 
+    extract the 12-bit DAC data and 4-bit command value from a CatheterChannelCmd */
 void compactCatheterCmd(CatheterChannelCmd& cmd, unsigned int* cmd4, unsigned int* data12);
 
-/** \brief void expandCatheterCmd(CatheterChannelCmd& cmd, bool* enable, bool* update, dir_t* dir): extract the semantic command bit values from a CatheterChannelCmd */
+/** \brief void expandCatheterCmd(CatheterChannelCmd& cmd, bool* enable, bool* update, dir_t* dir): 
+    extract the semantic command bit values from a CatheterChannelCmd */
 void expandCatheterCmd(CatheterChannelCmd& cmd, bool* enable, bool* update, dir_t* dir);
 
-/** \brief uint8_t fletcher8(int len, uint8_t bytes[]): compute the fletcher checksum of an array of bytes of length 'len' using blocksize=8. ('len' <= the actual length of the array, since we may not want to include all elements of the array in the computation.) */
+/** \brief uint8_t fletcher8(int len, uint8_t bytes[]): 
+    compute the fletcher checksum of an array of bytes of length 'len' using blocksize=8. 
+    ('len' <= the actual length of the array, since we may not want to include all elements 
+    of the array in the computation.) */
 uint8_t fletcher8(int len, uint8_t bytes[]);
 
-/** \brief std::vector<uint8_t> compactPacketBytes(std::vector<catheterChannelCmd>&,int): compacts a packet into a string to be sent over serial */
+/** \brief std::vector<uint8_t> compactPacketBytes(std::vector<catheterChannelCmd>&,int): 
+    compacts a packet into a string to be sent over serial */
 std::vector<uint8_t> compactPacketBytes(std::vector<CatheterChannelCmd>&,int);
 
-/** \brief std::vector<uint8_t> compactPreambleBytes(int pseqnum,int cmdCount): uses the command index and number of commands to generate the preamble bit(s). */
+/** \brief std::vector<uint8_t> compactPreambleBytes(int pseqnum,int cmdCount): 
+    uses the command index and number of commands to generate the preamble bit(s). */
 std::vector<uint8_t> compactPreambleBytes(int pseqnum,int cmdCount);
 
-/** \brief std::vector<uint8_t> compactPostamble(int pseqnum): uses the command index to generate the postamble bit(s). */
+/** \brief std::vector<uint8_t> compactPostamble(int pseqnum): 
+    uses the command index to generate the postamble bit(s). */
 std::vector<uint8_t> compactPostambleBytes(int pseqnum);
 
-/** \brief std::vector<uint8_t> compactCommandVectBytes(const std::vector<catheterChannelCmd>&): generalize version of generating a command for multiple channels simultaneously. */
+/** \brief std::vector<uint8_t> compactCommandVectBytes(const std::vector<catheterChannelCmd>&): 
+    generalize version of generating a command for multiple channels simultaneously. */
 std::vector<uint8_t> compactCommandVectBytes(const std::vector<CatheterChannelCmd>&);
 
-/** \brief std::vector<uint8_t> compactCommandBytes(const catheterChannelCmd): compacts a single arduino command into a 3 byte packet. */
+/** \brief std::vector<uint8_t> compactCommandBytes(const catheterChannelCmd): 
+    compacts a single arduino command into a 3 byte packet. */
 std::vector<uint8_t> compactCommandBytes(const CatheterChannelCmd&);
 
-void getPacketBytes(std::vector<CatheterChannelCmd>& commandVect, std::vector<std::vector<uint8_t>>& pbytes, 
-                    std::vector<int>& pdelays);
+//////////////////////
+// "public" methods //
+//////////////////////
 
+/** \brief std::vector<CatheterChannelCmd> padChannelCmds(std::vector<CatheterChannelCmd> cmds):
+    ensures there is a command for each channel that will be part of a packet */
+std::vector<CatheterChannelCmd> padChannelCmds(const std::vector<CatheterChannelCmd>& cmds);
+
+/** \brief void getPacketBytes(std::vector<CatheterChannelCmd>& commandVect, std::vector<std::vector<uint8_t>>& pbytes, 
+                               std::vector<int>& pdelays):
+    separate a list of catheter channel commands into packets-- packet bytes and packet delays */
+void getPacketBytes(std::vector<CatheterChannelCmd>& cmds, std::vector<std::vector<uint8_t>>& cmdBytes, 
+                    std::vector<int>& delays);
+
+/** \brief bool validateBytesRcvd(std::vector<uint8_t> bytesRead): 
+    validates returned bytes for a packet containing commands for all channels and
+    returns the channel data parsesd from the return values (or -1 on error) 
+    NB: the currentMA field is filled with DAC RES data! */
+CatheterPacket validateBytesRcvd(std::vector<uint8_t> bytesRead);
+
+/** \brief CatheterChannelCmd resetCommand(): generate a global reset catheter channel command */
 CatheterChannelCmd resetCommand();
+/** \brief std::vector<uint8_t> resetCommandBytes(): generate the bytes for a global reset command */
 std::vector<uint8_t> resetCommandBytes();
 
 /** current conversion functions: milliamps<-->dac resolution */

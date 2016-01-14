@@ -1,3 +1,7 @@
+
+#include "ser/SerialSender.h"
+
+
 #include "wx/wxprec.h"
 
 #ifdef __BORLANDC__
@@ -11,25 +15,14 @@
 #include <wx/app.h>
 #include <wx/frame.h>
 #include <wx/panel.h>
-// command grid
+#include <wx/numdlg.h>
 #include <wx/grid.h>
-#include <wx/headerctrl.h>
-#include <wx/generic/gridctrl.h>
-#include <wx/generic/grideditors.h>
 // status panel
 #include <wx/stattext.h>
 // control buttons
 #include <wx/button.h>
 #include <wx/filedlg.h>
 #include <wx/wfstream.h>
-// pyserial
-#include <wx/numdlg.h>
-#include <wx/utils.h>
-#include <wx/process.h>
-#include <wx/filefn.h>
-#ifdef __WINDOWS__
-#include "wx/dde.h"
-#endif
 
 #include "CatheterGui.h"
 #include "CatheterGrid.h"
@@ -39,7 +32,6 @@
 
 // file definitions
 #define playfile_wildcard wxT("*.play")
-#define portfile wxT("ports.txt")
 
 
 IMPLEMENT_APP(CatheterGuiApp)
@@ -77,10 +69,8 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     sendResetButton = new wxButton(parentPanel, ID_SEND_RESET_BUTTON, wxT("Send Reset"));
     refreshSerialButton = new wxButton(parentPanel, ID_REFRESH_SERIAL_BUTTON, wxT("Refresh Serial"));
 
-    serialConnected = false;
     playfileSaved = false;
     playfilePath = wxEmptyString;
-    portName = wxEmptyString;
 
     // frame
     wxBoxSizer* hbox = new wxBoxSizer(wxHORIZONTAL);
@@ -105,16 +95,19 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
     setStatusText(wxT("Welcome to Catheter Gui"));
 
     // try to open serial connection
-    if (openSerialConnection()) {
-        setStatusText(wxString::Format("Serial Connected on port %s", portName));
-    } else {
+    ss = new SerialSender();
+    if ((ss->getSerialPath()).empty()) {
         setStatusText(wxString::Format("Serial Disconnected"));
+    } else {
+        if (ss->connect(SerialSender::BR_9600)) {
+            SetStatusText(wxString::Format("Serial Connected on Port %s", ss->getSerialPath()));
+        }
     }
 }
 
 CatheterGuiFrame::~CatheterGuiFrame() {
     wxMessageBox(wxT("CatheterGuiFrame Destructor"));
-    if (serialConnected) {
+    if (ss->isOpen()) {
         sendResetCommand();
         closeSerialConnection();
     }
@@ -165,25 +158,34 @@ void CatheterGuiFrame::OnSavePlayfileButtonClicked(wxCommandEvent& e) {
 }
 
 void CatheterGuiFrame::OnSendCommandsButtonClicked(wxCommandEvent& e) {
-    if (serialConnected) {
+    if (ss->isOpen()) {
         setStatusText(wxT("Sending Commands...\n"));
+        if (sendGridCommands()) {
+            wxMessageBox(wxT("Commands Successfully Sent"));
+        } else {
+            wxMessageBox(wxT("Error Sending Commands"));
+        }
     } else {
         wxMessageBox("Serial Disconnected!");
     }
 }
 
 void CatheterGuiFrame::OnSendResetButtonClicked(wxCommandEvent& e) {
-    if (serialConnected) {
+    if (ss->isOpen()) {
         setStatusText(wxT("Sending Reset Command...\n"));
-        sendResetCommand();
+        if (sendResetCommand()) {
+            wxMessageBox(wxT("Reset Command Successfully Sent"));
+        } else {
+            wxMessageBox(wxT("Error Sending Reset Command"));
+        }
     } else {
         wxMessageBox("Serial Disconnected!");
     }
 }
 
 void CatheterGuiFrame::OnRefreshSerialButtonClicked(wxCommandEvent& e) {
-    if (openSerialConnection()) {
-        setStatusText(wxString::Format("Serial Connected on port %s", portName));
+    if (refreshSerialConnection()) {
+        setStatusText(wxString::Format("Serial Connected on port %s", ss->getSerialPath()));
     } else {
         setStatusText(wxString::Format("Serial Disconnected"));
     }
@@ -230,11 +232,13 @@ wxString CatheterGuiFrame::savePlayfile() {
 }
 
 void CatheterGuiFrame::loadPlayfile(const wxString& path) {
+    std::vector<CatheterChannelCmd> gridCmds;
     loadPlayFile(path.mb_str(), gridCmds);
     grid->SetCommands(gridCmds);
 }
 
 void CatheterGuiFrame::unloadPlayfile(const wxString& path) {
+    std::vector<CatheterChannelCmd> gridCmds;
     grid->GetCommands(gridCmds);
     writePlayFile(path.mb_str(), gridCmds);
 }
@@ -249,121 +253,70 @@ void CatheterGuiFrame::warnSavePlayfile() {
     }
 }
 
-//TODO
 bool CatheterGuiFrame::sendCommands(std::vector<CatheterChannelCmd> cmdVect) {
-    bool success = serialConnected;
-    if (serialConnected) {
-
+    if (ss->isOpen()) {        
+        std::vector<CatheterChannelCmd> cmds;
+        std::vector<std::vector<uint8_t>> cmdBytes;
+        std::vector<int> delays;
+        std::vector<std::vector<uint8_t>> bytesRead;
+        CatheterPacket packet;
+        // pad list of commands so that there is a command for each channel
+        cmds = padChannelCmds(cmdVect);
+        // convert commands to byte and delay vectors
+        getPacketBytes(cmds, cmdBytes, delays);
+        // send packet bytes and read bytes returned
+        ss->sendByteVectorsAndRead(cmdBytes, bytesRead, delays);
+        // verify success of returned bytes for each packet
+        if (bytesRead.size()) {
+            for (int i = 0; i < bytesRead.size(); i++) {
+                packet = validateBytesRcvd(bytesRead[i]);
+                for (int j = 0; j < NCHANNELS; j++) {
+                    if (packet.cmds[j].currentMA == -1) {
+                        return false;
+                    } else {
+                        dir_t dir = ((cmds[(i*NCHANNELS) + j].currentMA > 0) ? DIR_POS : DIR_NEG);
+                        double currentMA = convert_current_by_channel(packet.cmds[j].currentMA, dir, j);
+                        // check if the returned current matches the original current
+                        if (!abs(cmds[(i*NCHANNELS) + j].currentMA - currentMA) < 0.01) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
     }
-    return success;
+    return false;
+}
+
+bool CatheterGuiFrame::sendGridCommands() {
+    // get list of CatheterChannelCmds
+    std::vector<CatheterChannelCmd> cmds;
+    grid->GetCommands(cmds);
+    return sendCommands(cmds);
 }
 
 bool CatheterGuiFrame::sendResetCommand() {
     std::vector<CatheterChannelCmd> resetVect;
     resetVect.push_back(resetCommand());
-
     return sendCommands(resetVect);
 }
 
-std::vector<wxString> getSerialPortsFromWxProcess() {
-    std::vector<wxString> ports;
-    /*
-    wxString pythonexe = wxT("C:\\Users\\acceber\\AppData\\Local\\Programs\\Python\\Python35-32\\python.exe");
-    wxString script = wxGetCwd() + wxT("\\find_serial_ports.py");
-
-    wxString cmd_to_stdout = wxString::Format("%s %s", pythonexe, script);
-
-    wxProcess* process = wxProcess::Open(cmd_to_stdout);
-    if (process) {
-        wxInputStream* std_out = process->GetInputStream();
-        if (std_out) {
-            wxString p = wxEmptyString;
-            while (std_out->CanRead()) {
-                char buf[64];
-                std_out->Read(buf, 64);
-                wxString temp(buf);
-                if (!temp.IsEmpty()) {
-                    p = p + temp;
-                }
-            }
-            wxMessageBox(wxString::Format("Found Serial Ports: %s", p));
-            wxString first = wxEmptyString;
-            wxString rest;
-            while (first.length < p.length) {
-                first = p.BeforeFirst('\n', &rest);
-                if (first.length < p.length) {
-                    ports.push_back(first);
-                    p = rest;
-                }
-            }
-        } else {
-            wxMessageBox(wxT("Could not open process stdout"));
-        }
-    } else {
-        wxMessageBox(wxString::Format("Could not launch process %s", cmd_to_stdout));
-    }
-    if (wxProcess::Exists(process->GetPid()))
-        wxProcess::Kill(process->GetPid());
-    */
-    return ports;
-}
-
-std::vector<wxString> getSerialPortsFromWxShell() {
-    std::vector<wxString> ports;
-    /*
-    wxString pythonexe = wxT("C:\\Users\\acceber\\AppData\\Local\\Programs\\Python\\Python35-32\\python.exe");
-    wxString script = wxGetCwd() + wxT("\\find_serial_ports.py");
-    wxString fullPortfile = wxGetCwd() + "\\" + portfile;
-
-    wxString cmd_to_file = wxString::Format("%s %s %s", pythonexe, script, fullPortfile);
-    
-    int exit_code = wxShell(cmd_to_file);
-
-    if (exit_code == 0 && wxFileExists(portfile)) {
-        wxFile* f = new wxFile(portfile);
-        if (f->IsOpened()) {
-            std::vector<wxString> ports;
-            size_t ret = 1;
-            while (ret > 0) {
-                char buf[64];
-                ret = f->Read(buf, 64);
-                wxString p(buf);
-                if (!p.IsEmpty()) {
-                    ports.push_back(p);
-                }
-            }
-        }
-    }
-    */
-    return ports;
-}
-
-std::vector<wxString> getSerialPorts() {
-    //return getSerialPortsFromWxProcess();
-    return getSerialPortsFromWxShell();
-}
-
-bool CatheterGuiFrame::openSerialConnection() {
-    if (wxFileExists(portfile)) {
-        wxRemoveFile(portfile);
-    }
-
-    std::vector<wxString> ports = getSerialPorts();
+bool CatheterGuiFrame::refreshSerialConnection() {
+    std::vector<std::string> ports = ss->findAvailableSerialPorts();
 
     if (!ports.empty()) {
         for (int i = 0; i < ports.size(); i++) {
-            wxMessageBox(wxString::Format("Found Serial Port: %s (%d/%d)", ports[i], i, ports.size()));
+            wxMessageBox(wxString::Format("Found Serial Port: %s (%d/%d)", wxString(ports[i]), i, ports.size()));
         }
         int which_port = wxGetNumberFromUser(wxEmptyString, wxT("Select Serial Port Number"), wxEmptyString, 0, 0, ports.size(), this);
-        wxMessageBox(wxString::Format("Selected Serial Port: %s", ports[which_port]));
-        portName = ports[which_port];
+        wxMessageBox(wxString::Format("Selected Serial Port: %s", wxString(ports[which_port])));
+        ss->setSerialPath(ports[which_port]);
+        return ss->connect();
     }
-    return (!portName.IsEmpty());
+    return false;
 }
 
 bool CatheterGuiFrame::closeSerialConnection() {
-    if (wxFileExists(portfile)) {
-        wxRemoveFile(portfile);
-    }
-    return !serialConnected;
+    return ss->disconnect();
 }

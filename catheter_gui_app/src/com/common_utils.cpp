@@ -221,6 +221,47 @@ std::vector<uint8_t> compactPacketBytes(std::vector<CatheterChannelCmd>& cmdVect
     return bytes;
 }
 
+std::vector<CatheterChannelCmd> padChannelCmds(const std::vector<CatheterChannelCmd>& cmds) {
+    std::vector<CatheterChannelCmd> newCmds;
+    bool included[NCHANNELS];
+    int pnum = 0;
+    
+    for (int i = 0; i < NCHANNELS; i++)
+        included[i] = false;
+
+    for (int i = 0; i < cmds.size(); i++) {
+        newCmds.push_back(cmds[i]);
+        included[cmds[i].channel - 1] = true;
+        // end of packet
+        if (cmds[i].delayMS > 0 || i == (cmds.size() - 1)) {
+            for (int i = 0; i < NCHANNELS; i++) {
+                if (!included[i]) {
+                    CatheterChannelCmd c;
+                    if (!pnum) {
+                        c = resetCommand();
+                    } else {
+                        // duplicate last command for this channel
+                        for (int k = (pnum - 1) * NCHANNELS; k < pnum * NCHANNELS; k++) {
+                            if (newCmds[k].channel == (i + 1)) {
+                                c = newCmds[k]; 
+                                break;
+                            }
+                        }
+                    }
+                    newCmds.push_back(c);
+                }
+                included[i] = false;
+            }  
+            pnum++;
+        }
+    }
+    // assert there are the correct number of commands
+    if (newCmds.size() != (pnum * NCHANNELS)) {
+        printf("ERROR in number of padded channel commands!\n");
+    }
+    return newCmds;
+}
+
 void getPacketBytes(std::vector<CatheterChannelCmd>& commandVect, std::vector<std::vector<uint8_t>>& pbytes, 
                     std::vector<int>& pdelays) {
     pbytes.clear();
@@ -241,6 +282,54 @@ void getPacketBytes(std::vector<CatheterChannelCmd>& commandVect, std::vector<st
         }        
     }
 
+}
+
+CatheterPacket validateBytesRcvd(std::vector<uint8_t> bytesRead) {
+    // revision F protocol: 
+    // 3 bytes for each channel (assumption: a packet contains data for each channel)
+    // Byte 1: bit 0(msb): indicates that this is a meta byte
+    //         bit 1: indicates whether the packet is OK
+    //         bits 2-3: unused
+    //         bits 4-7: packet index
+    // Byte 2: 00(msb) + first 6 MSBs of 12-bit channel DAC data
+    // Byte 3: 00(msb) + last 6 LSBs of 12-bit channel DAC data
+    struct CatheterPacket packet;
+    int chan = 1;
+    int data = 0;
+    bool packet_ok = false;
+    bool first_byte = true;
+
+    for (int b = 0; b < bytesRead.size(); b++) {
+        // check if first bit is set
+        if (bytesRead[b] >= 128) {
+            packet.pseqnum = bytesRead[b] & 15;
+            // check if first 2 bits are set
+            packet_ok = (bytesRead[b] >= 192);
+            first_byte = true;
+            data = 0;            
+        } else {
+            if (packet_ok) {
+                if (first_byte) {
+                    data += ((bytesRead[b] & 63) << 6);
+                    first_byte = false;
+                } else {
+                    data += (bytesRead[b] & 63);
+                    CatheterChannelCmd c;
+                    c.channel = chan;
+                    c.currentMA = data; // this is wrong! convert this in the calling method!
+                    packet.cmds.push_back(c);
+                    chan++;
+                }
+            } else {
+                CatheterChannelCmd c;
+                c.channel = chan;
+                c.currentMA = -1;
+                packet.cmds.push_back(c);
+                chan++;
+            }
+        }
+    }        
+    return packet;
 }
 
 CatheterChannelCmd resetCommand() {

@@ -7,8 +7,8 @@
 #include <chrono>
 #include <thread>
 
-#include "SerialSender.h"
 #include "common_utils.h"
+#include "SerialSender.h"
 
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
@@ -33,8 +33,12 @@ bool SerialSender::isOpen() {
 }
 
 void SerialSender::setBaud(Baud b) {
+    boost::system::error_code ec;
     unsigned int baud = static_cast<int>(b);
-    sp.set_option(boost::asio::serial_port_base::baud_rate(baud));
+    sp.set_option(boost::asio::serial_port_base::baud_rate(baud), ec);
+    if (ec) {
+        printf("Error setting Baud Rate.\n");
+    }
 }
 
 std::vector<std::string> SerialSender::findAvailableSerialPorts() {

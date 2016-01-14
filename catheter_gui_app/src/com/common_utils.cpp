@@ -231,18 +231,25 @@ std::vector<CatheterChannelCmd> padChannelCmds(const std::vector<CatheterChannel
 
     for (int i = 0; i < cmds.size(); i++) {
         newCmds.push_back(cmds[i]);
-        included[cmds[i].channel - 1] = true;
-        // end of packet
+        // mark this channel as included
+        if (cmds[i].channel == GLOBAL_ADDR) {
+            for (int j = 0; j < NCHANNELS; j++)
+                included[j] = true;
+        } else {
+            included[cmds[i].channel - 1] = true;
+        }
+        // check for end of packet
         if (cmds[i].delayMS > 0 || i == (cmds.size() - 1)) {
-            for (int i = 0; i < NCHANNELS; i++) {
-                if (!included[i]) {
+            // check that every channel is included in this packet
+            for (int j = 0; j < NCHANNELS; j++) {
+                if (!included[j]) {
                     CatheterChannelCmd c;
                     if (!pnum) {
                         c = resetCommand();
                     } else {
-                        // duplicate last command for this channel
+                        // find the last command for this channel and duplicate it
                         for (int k = (pnum - 1) * NCHANNELS; k < pnum * NCHANNELS; k++) {
-                            if (newCmds[k].channel == (i + 1)) {
+                            if (newCmds[k].channel == (j + 1)) {
                                 c = newCmds[k]; 
                                 break;
                             }
@@ -250,7 +257,7 @@ std::vector<CatheterChannelCmd> padChannelCmds(const std::vector<CatheterChannel
                     }
                     newCmds.push_back(c);
                 }
-                included[i] = false;
+                included[j] = false;
             }  
             pnum++;
         }

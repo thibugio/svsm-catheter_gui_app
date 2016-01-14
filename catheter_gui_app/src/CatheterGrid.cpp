@@ -266,9 +266,8 @@ void CatheterGrid::formatDefaultGrid(int nrows) {
 
 void CatheterGrid::resetDefaultGrid(int nrows) {
     cmdCount = 0;
-    ClearGrid();
 
-    DeleteRows(GetNumberRows());
+    DeleteRows(0, GetNumberRows());
     for (int i = 0; i < nrows; i++)
         addGridRow(true);
 

@@ -54,7 +54,7 @@ class CatheterGuiFrame : public wxFrame {
     void setStatusText(const wxString& msg);
     // control buttons
     void warnSavePlayfile();
-    wxString savePlayfile();
+    void savePlayfile();
     wxString openPlayfile();
     void loadPlayfile(const wxString& path);
     void unloadPlayfile(const wxString& path);

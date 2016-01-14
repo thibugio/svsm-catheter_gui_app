@@ -96,6 +96,10 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
 
     // try to open serial connection
     ss = new SerialSender();
+    if (!ss) {
+        wxMessageBox(wxT("unable to create instance of SerialSender"));
+        exit(EXIT_FAILURE);
+    }
     if ((ss->getSerialPath()).empty()) {
         setStatusText(wxString::Format("Serial Disconnected"));
     } else {
@@ -147,10 +151,8 @@ void CatheterGuiFrame::OnNewPlayfileButtonClicked(wxCommandEvent& e) {
 }
 
 void CatheterGuiFrame::OnSavePlayfileButtonClicked(wxCommandEvent& e) {
-    wxString path = savePlayfile();
-    if (!path.IsEmpty()) {
-        playfileSaved = true;
-        playfilePath = path;
+    savePlayfile();
+    if (playfileSaved) {
         // save contents of edit panel to playfilePath
         unloadPlayfile(playfilePath);
         setStatusText(wxString::Format(wxT("Saved Playfile as %s"), playfilePath));
@@ -217,7 +219,7 @@ wxString CatheterGuiFrame::openPlayfile() {
     return path;
 }
 
-wxString CatheterGuiFrame::savePlayfile() {
+void CatheterGuiFrame::savePlayfile() {
     wxString path = wxEmptyString;
     wxFileDialog saveDialog(this, wxT("Save Playfile"), wxGetCwd(), "", playfile_wildcard, wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (saveDialog.ShowModal() != wxID_CANCEL) {
@@ -228,7 +230,10 @@ wxString CatheterGuiFrame::savePlayfile() {
             path = saveDialog.GetPath();
         }
     }
-    return path;
+    if (!path.IsEmpty()) {
+        playfilePath = path;
+        playfileSaved = true;
+    }
 }
 
 void CatheterGuiFrame::loadPlayfile(const wxString& path) {
@@ -307,9 +312,9 @@ bool CatheterGuiFrame::refreshSerialConnection() {
 
     if (!ports.empty()) {
         for (int i = 0; i < ports.size(); i++) {
-            wxMessageBox(wxString::Format("Found Serial Port: %s (%d/%d)", wxString(ports[i]), i, ports.size()));
+            wxMessageBox(wxString::Format("Found Serial Port: %s (%d/%d)", wxString(ports[i]), i+1, ports.size()));
         }
-        int which_port = wxGetNumberFromUser(wxEmptyString, wxT("Select Serial Port Number"), wxEmptyString, 0, 0, ports.size(), this);
+        int which_port = wxGetNumberFromUser(wxEmptyString, wxT("Select Serial Port Number"), wxEmptyString, 0, 1, ports.size(), this) - 1;
         wxMessageBox(wxString::Format("Selected Serial Port: %s", wxString(ports[which_port])));
         ss->setSerialPath(ports[which_port]);
         return ss->connect();

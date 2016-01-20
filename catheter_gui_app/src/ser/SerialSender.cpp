@@ -17,10 +17,7 @@
 SerialSender::SerialSender() 
 : io(), sp(io) {
     setBaud(Baud::BR_9600);
-    serial_path = getSerialPath();
-    if (serial_path.empty()) {
-        printf("Could not find an available serial port\n");
-    }
+    serial_path = setSerialPath();
 }
 
 SerialSender::~SerialSender() {
@@ -155,6 +152,11 @@ bool SerialSender::sendByteVectors(std::vector<std::vector<uint8_t>> byteVecs, s
     return complete == byteVecs.size();
 }
 
+void handler(
+    const boost::system::error_code& error, // Result of operation.
+    std::size_t bytes_transferred           // Number of bytes read.
+    ) { }
+
 size_t SerialSender::sendByteVectorsAndRead(std::vector<std::vector<uint8_t>> byteVecs,
                                             std::vector<std::vector<uint8_t>>& bytesRead,
                                             std::vector<int> delays) {
@@ -163,9 +165,45 @@ size_t SerialSender::sendByteVectorsAndRead(std::vector<std::vector<uint8_t>> by
     bytesRead.clear();
     std::vector<uint8_t> retBytes;
     for (unsigned int i=0; i<npackets; i++) {
-        nbytes += SerialSender::sendByteVectorAndRead(byteVecs[i], retBytes, byteVecs[i].size());
-        bytesRead.push_back(retBytes);
-        std::this_thread::sleep_for(std::chrono::milliseconds(delays[i]));
+        sendByteVector(byteVecs[i]);
+        int max_pause = 50 + delays[i]; //ms greater than the specified delay
+        int pause_ms = 5; //ms increment to wait in
+        int pause_cnt_ms = 0; //ms running count of total time waiting
+        int nBytesRead = 0;
+        boost::system::error_code ec;
+        char b;
+        // under the current (15-01-2016) protocol, the arduino is expected to
+        // send back 3 bytes per command regardless of success status
+        while (nBytesRead < 3 && pause_cnt_ms < max_pause) {
+            //clock() start call goes here
+            bool finished = false;
+            char b = 0;
+            // non-blocking
+            sp.async_read_some(boost::asio::buffer(&b, 1), handler);
+            if (b) {
+                switch (b) {
+                case '\r':
+                    break;
+                case '\n':
+                    bytesRead.push_back(retBytes);
+                    finished = true;
+                    break;
+                default:
+                    nBytesRead++;
+                    retBytes.push_back(b);
+                    //clock() stop call goes here
+                    // calculate time elapsed and add to pause_cnt_ms
+                }                
+            }
+            if (finished && pause_cnt_ms < delays[i]) {
+                //sleep for the difference in time
+                //break out of this loop
+            }
+        }
+
+        //nbytes += SerialSender::sendByteVectorAndRead(byteVecs[i], retBytes, byteVecs[i].size());
+        //bytesRead.push_back(retBytes);
+        //std::this_thread::sleep_for(std::chrono::milliseconds(delays[i]));
     }
     return nbytes;
 }

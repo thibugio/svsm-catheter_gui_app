@@ -36,7 +36,6 @@
 
 wxBEGIN_EVENT_TABLE(CatheterGrid, wxGrid)
     EVT_GRID_CELL_CHANGING(CatheterGrid::OnGridCellChanging)
-    EVT_GRID_TABBING(CatheterGrid::OnGridTabbing)
 wxEND_EVENT_TABLE()
 
 CatheterGrid::CatheterGrid(wxPanel* parentPanel) :
@@ -94,10 +93,6 @@ void CatheterGrid::OnGridCellChanging(wxGridEvent& e) {
     }
 
     e.Skip();
-}
-
-void CatheterGrid::OnGridTabbing(wxGridEvent& e) {
-    //SetFocus();
 }
 
 ////////////////////

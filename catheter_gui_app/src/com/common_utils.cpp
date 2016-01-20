@@ -222,49 +222,29 @@ std::vector<uint8_t> compactPacketBytes(std::vector<CatheterChannelCmd>& cmdVect
 }
 
 std::vector<CatheterChannelCmd> padChannelCmds(const std::vector<CatheterChannelCmd>& cmds) {
-    std::vector<CatheterChannelCmd> newCmds;
-    bool included[NCHANNELS];
-    int pnum = 0;
-    
-    for (int i = 0; i < NCHANNELS; i++)
-        included[i] = false;
-
+    // count the number of packets
+    int npackets = 0;    
     for (int i = 0; i < cmds.size(); i++) {
-        newCmds.push_back(cmds[i]);
-        // mark this channel as included
-        if (cmds[i].channel == GLOBAL_ADDR) {
-            for (int j = 0; j < NCHANNELS; j++)
-                included[j] = true;
-        } else {
-            included[cmds[i].channel - 1] = true;
-        }
-        // check for end of packet
         if (cmds[i].delayMS > 0 || i == (cmds.size() - 1)) {
-            // check that every channel is included in this packet
-            for (int j = 0; j < NCHANNELS; j++) {
-                if (!included[j]) {
-                    CatheterChannelCmd c;
-                    if (!pnum) {
-                        c = resetCommand();
-                    } else {
-                        // find the last command for this channel and duplicate it
-                        for (int k = (pnum - 1) * NCHANNELS; k < pnum * NCHANNELS; k++) {
-                            if (newCmds[k].channel == (j + 1)) {
-                                c = newCmds[k]; 
-                                break;
-                            }
-                        }
-                    }
-                    newCmds.push_back(c);
-                }
-                included[j] = false;
-            }  
-            pnum++;
+            npackets++;
         }
     }
-    // assert there are the correct number of commands
-    if (newCmds.size() != (pnum * NCHANNELS)) {
-        printf("ERROR in number of padded channel commands!\n");
+    // define new command vector with a command for each channel in each packet
+    std::vector<CatheterChannelCmd> newCmds(npackets * NCHANNELS, resetCommand());
+    // iterate through all new commands and conditionally assign them based on old commands
+    int cmdptr = 0;
+    for (int i = 0; i < npackets; i++) {
+        for (int j = 0; j < NCHANNELS; j++) {
+            if (cmds[cmdptr].channel == (j + 1)) {
+                newCmds[(i * NCHANNELS) + j] = cmds[cmdptr];
+                cmdptr++;
+            } else {
+                newCmds[(i * NCHANNELS) + j].channel = j + 1;
+                if (i > 0) {
+                    newCmds[(i * NCHANNELS) + j] = newCmds[((i - 1) * NCHANNELS) + j];
+                }
+            }
+        }
     }
     return newCmds;
 }

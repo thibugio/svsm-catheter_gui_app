@@ -20,7 +20,6 @@ class CatheterGrid : public wxGrid {
     ~CatheterGrid();
 
     void OnGridCellChanging(wxGridEvent& e);
-    void OnGridTabbing(wxGridEvent& e);
 
     void GetCommands(std::vector<CatheterChannelCmd>& cmds);
     void SetCommands(const std::vector<CatheterChannelCmd>& cmds);

@@ -63,6 +63,8 @@ class CatheterGuiFrame : public wxFrame {
     bool sendResetCommand();
     bool refreshSerialConnection();
     bool closeSerialConnection();
+    wxString wxToString(CatheterChannelCmd cmd);
+    void wxSummarizeCmds(std::vector<CatheterChannelCmd> cmds);
 
     wxPanel* parentPanel;
     CatheterGrid* grid;

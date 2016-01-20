@@ -33,6 +33,9 @@
 // file definitions
 #define playfile_wildcard wxT("*.play")
 
+#define CATHETER_GUI_DEBUG 1
+#define DBG(do_something) if (CATHETER_GUI_DEBUG) { do_something; }
+
 
 IMPLEMENT_APP(CatheterGuiApp)
 
@@ -104,13 +107,13 @@ CatheterGuiFrame::CatheterGuiFrame(const wxString& title) :
         setStatusText(wxString::Format("Serial Disconnected"));
     } else {
         if (ss->connect(SerialSender::BR_9600)) {
-            SetStatusText(wxString::Format("Serial Connected on Port %s", ss->getSerialPath()));
+            setStatusText(wxString::Format("Serial Connected on Port %s", ss->getSerialPath()));
         }
     }
 }
 
 CatheterGuiFrame::~CatheterGuiFrame() {
-    wxMessageBox(wxT("CatheterGuiFrame Destructor"));
+    DBG(wxMessageBox(wxT("CatheterGuiFrame Destructor")))
     if (ss->isOpen()) {
         sendResetCommand();
         closeSerialConnection();
@@ -141,7 +144,6 @@ void CatheterGuiFrame::OnSelectPlayfileButtonClicked(wxCommandEvent& e) {
 void CatheterGuiFrame::OnNewPlayfileButtonClicked(wxCommandEvent& e) {
     warnSavePlayfile();
 
-    // clear command grid
     grid->ResetDefault();
 
     playfileSaved = false;
@@ -163,9 +165,9 @@ void CatheterGuiFrame::OnSendCommandsButtonClicked(wxCommandEvent& e) {
     if (ss->isOpen()) {
         setStatusText(wxT("Sending Commands...\n"));
         if (sendGridCommands()) {
-            wxMessageBox(wxT("Commands Successfully Sent"));
+            setStatusText(wxT("Commands Successfully Sent"));
         } else {
-            wxMessageBox(wxT("Error Sending Commands"));
+            setStatusText(wxT("Error Sending Commands"));
         }
     } else {
         wxMessageBox("Serial Disconnected!");
@@ -176,9 +178,9 @@ void CatheterGuiFrame::OnSendResetButtonClicked(wxCommandEvent& e) {
     if (ss->isOpen()) {
         setStatusText(wxT("Sending Reset Command...\n"));
         if (sendResetCommand()) {
-            wxMessageBox(wxT("Reset Command Successfully Sent"));
+            setStatusText(wxT("Reset Command Successfully Sent"));
         } else {
-            wxMessageBox(wxT("Error Sending Reset Command"));
+            setStatusText(wxT("Error Sending Reset Command"));
         }
     } else {
         wxMessageBox("Serial Disconnected!");
@@ -265,16 +267,23 @@ bool CatheterGuiFrame::sendCommands(std::vector<CatheterChannelCmd> cmdVect) {
         std::vector<int> delays;
         std::vector<std::vector<uint8_t>> bytesRead;
         CatheterPacket packet;
+        
         // pad list of commands so that there is a command for each channel
         cmds = padChannelCmds(cmdVect);
+        DBG(wxSummarizeCmds(cmds));
+
         // convert commands to byte and delay vectors
         getPacketBytes(cmds, cmdBytes, delays);
+        
         // send packet bytes and read bytes returned
         ss->sendByteVectorsAndRead(cmdBytes, bytesRead, delays);
+        
         // verify success of returned bytes for each packet
         if (bytesRead.size()) {
             for (int i = 0; i < bytesRead.size(); i++) {
                 packet = validateBytesRcvd(bytesRead[i]);
+                DBG(wxMessageBox(wxT("Printing Packet Received:")))
+                DBG(wxSummarizeCmds(packet.cmds))
                 for (int j = 0; j < NCHANNELS; j++) {
                     if (packet.cmds[j].currentMA == -1) {
                         return false;
@@ -316,6 +325,10 @@ bool CatheterGuiFrame::refreshSerialConnection() {
         }
         int which_port = wxGetNumberFromUser(wxEmptyString, wxT("Select Serial Port Number"), wxEmptyString, 0, 1, ports.size(), this) - 1;
         wxMessageBox(wxString::Format("Selected Serial Port: %s", wxString(ports[which_port])));
+
+        // reconnect with the new port
+        if (ss->isOpen()) 
+            ss->disconnect();
         ss->setSerialPath(ports[which_port]);
         return ss->connect();
     }
@@ -324,4 +337,23 @@ bool CatheterGuiFrame::refreshSerialConnection() {
 
 bool CatheterGuiFrame::closeSerialConnection() {
     return ss->disconnect();
+}
+
+void CatheterGuiFrame::wxSummarizeCmds(std::vector<CatheterChannelCmd> cmds) {
+    if (!(cmds.size() % NCHANNELS)) {
+        for (int i = 0; i < (cmds.size() / NCHANNELS); i++) {
+            wxString allchannels = wxEmptyString;
+            for (int j = 0; j < NCHANNELS; j++) {
+                allchannels = allchannels + wxToString(cmds[(i * NCHANNELS) + j]) + wxT("\n");
+            }
+            wxMessageBox(allchannels);
+        }
+    } else {
+        for (int i = 0; i < cmds.size(); i++)
+            wxMessageBox(wxToString(cmds[i]));
+    }    
+}
+
+wxString CatheterGuiFrame::wxToString(CatheterChannelCmd cmd) {
+    return wxString::Format("channel: %d\ncurrent: %3.3f\ndelay: %d\n", cmd.channel, cmd.currentMA, cmd.delayMS);
 }
